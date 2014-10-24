@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<style>
+html, body {
+    margin  : 0px;
+    padding : 0px;
+}
+
+div {
+    position    : absolute;
+    top         : 0px;
+    left        : 0px;
+    overflow    : hidden;
+    width       : 100%;
+    height      : 100%;
+    font-weight : bold;
+    font-size   : 30px;
+}
+
+img {
+    position : absolute;
+    height    : 95%;
+    top      : 2%;
+    left     : 2%;
+    z-index  : -1;
+}
+
+</style>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+<script src="scripts/Board.js"></script>
+
+<script type="text/javascript">
+
+
+</script>
+</head>
+
+<body>
+
+<div>
+    <img src="images/callaBoard1.JPG">
+    <div id='my_board'>
+        <input type="file" id="fileinput" />
+        <button id='prevboard' onclick="prev_board()">Prev</button>
+        <button id='nextboard' onclick="next_board()">Next</button>
+        <div id='my_chip' style="font-size:30px;color:white"></div>
+    </div>
+</div>
+
+</body>
