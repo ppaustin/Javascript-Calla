@@ -1,4 +1,12 @@
+function cloneArray(a) {
+    var b=[];
+    for (var i= 0;i< a.length;i++) {
+        b[i]=a[i];
+    }
+    return b;
+}
 
+//--------------------------------
 //    int [] shield;
 //
 //    int player_id;
@@ -8,54 +16,28 @@
 //
 //    boolean is_end;
 
-var shield;
-var player_id;
-var end_id;
-var move_cnt;
-var shistory;
-var is_end;
+//--------------------------------
 
-function cloneArray(a) {
-    var b=[];
-    for (var i= 0;i< a.length;i++) {
-        b[i]=a[i];
-    }
-    return b;
+function Board(other) {
+    if (!other)
+        this.reset();
+    else
+        this.copyFrom(other);
 }
 
-function Board() {
-//    this.shield=cloneArray(shield);
-//    this.player_id=player_id;
-//    this.end_id=end_id;
-//    this.move_cnt=move_cnt;
-//    this.shistory=shistory;
-//    this.is_end=is_end;
-    this.mf_backup();
-}
-
-Board.prototype.mf_backup = function () {
-    this.shield=cloneArray(shield);
-    this.player_id=player_id;
-    this.end_id=end_id;
-    this.move_cnt=move_cnt;
-    this.shistory=shistory;
-    this.is_end=is_end;
+Board.prototype.reset = function () {
+    this.shield = [3, 3, 4, 3, 3, 0, 3, 3, 4, 3, 3, 0];
+    this.player_id = 0;
+    this.end_id = -1;
+    this.move_cnt = 0;
+    this.shistory = "A";
+    this.is_end = false;
 };
 
-Board.prototype.mf_restore = function () {
-    shield = cloneArray(this.shield);
-    player_id = this.player_id;
-    end_id = this.end_id;
-    move_cnt = this.move_cnt;
-    shistory = this.shistory;
-    is_end = this.is_end;
-};
-
-
-Board.prototype.mf_copyFrom = function (other) {
-    if (this==other)
+Board.prototype.copyFrom = function (other) {
+    if (this===other)
         return;
-    this.shield=other.cloneArray(shield);
+    this.shield=cloneArray(other.shield);
     this.player_id=other.player_id;
     this.end_id=other.end_id;
     this.move_cnt=other.move_cnt;
@@ -63,7 +45,19 @@ Board.prototype.mf_copyFrom = function (other) {
     this.is_end=other.is_end;
 };
 
-Board.prototype.mf_getMoveList = function () {
+//Board.prototype.backup = function () {
+//    this.copyFrom(theBoard);
+//};
+//
+Board.prototype.restore = function () {
+    theBoard.copyFrom(this);
+};
+
+Board.prototype.score = function (p) {
+    return this.shield[p === 0 ? 5 : 11];
+};
+
+Board.prototype.getMoveList = function () {
     var movelist = new Array();
     var id = 0;
     if (this.player_id === 1) id = 6;
@@ -75,8 +69,8 @@ Board.prototype.mf_getMoveList = function () {
 };
 
 //id=0-9
-Board.prototype.mf_move = function (id) {
-    if (this.mf_isEnd())
+Board.prototype.move = function (id) {
+    if (this.isEnd())
         return false;
     var s_id = id;
 
@@ -92,7 +86,7 @@ Board.prototype.mf_move = function (id) {
     var cnt = this.shield[id];
     if (cnt === 0)
         return false;
-    if (!this.mf_canKeepMove())
+    if (!this.canKeepMove())
         return false;
 
     this.shield[id] = 0;
@@ -110,8 +104,9 @@ Board.prototype.mf_move = function (id) {
     return true;
 };
 
-Board.prototype.mf_canStealFrom = function(other_id) {
-    if (this.mf_isEnd()) {
+//other_id = 0-4; 6-10
+Board.prototype.canStealFrom = function(other_id) {
+    if (this.isEnd()) {
         return false;
     }
     if (this.move_cnt === 0 || this.end_id < 0 || (other_id + this.end_id !=10))
@@ -125,11 +120,10 @@ Board.prototype.mf_canStealFrom = function(other_id) {
     return false;
 };
 
-Board.prototype.mf_steal = function () {
-    var other_id = 10 - this.end_id;
-    if (!this.mf_canStealFrom(other_id))
+//other_id = 0-4; 6-10
+Board.prototype.stealFrom = function (other_id) {
+    if (!this.canStealFrom(other_id))
         return false;
-
     var cnt=this.shield[other_id];
     this.shield[other_id] = 0;
 
@@ -141,43 +135,62 @@ Board.prototype.mf_steal = function () {
     return true;
 };
 
-Board.prototype.mf_canKeepMove = function () {
+Board.prototype.steal = function () {
+    var other_id = 10 - this.end_id;
+    return canStealFrom(other_id);
+};
+
+Board.prototype.canKeepMove = function () {
     if (this.move_cnt === 0)
         return true;
     return ((this.end_id === 5 && this.player_id === 0) || (this.end_id === 11 && this.player_id === 1));
 };
 
-Board.prototype.mf_isEnd = function () {
-    var b_save=new Board();
-    this.mf_restore();
-    var rc = isEnd();
-    b_save.mf_restore();
-    return rc;
+Board.prototype.isEnd = function () {
+    if (this.is_end)
+        return this.is_end;
+    var sa = this.score(0);
+    var sb = this.score(1);
+    if ((this.canKeepMove() && this.getMoveList().length === 0) || sa > 16 || sb > 16) {
+        this.is_end = true;
+    }
+    return this.is_end;
 };
 
-//    this.mf_getBoardList1 = function ( finished_only) {
-//        return this.mf_getBoardList2(finished_only, true);
+Board.prototype.switchPlayer = function ()
+{
+    var e=this.isEnd();
+    if (e || this.move_cnt === 0)
+        return false;
+
+    this.player_id = (this.player_id === 0) ? 1 : 0;
+    this.end_id = -1;
+    this.move_cnt = 0;
+    if (!e)
+        this.shistory += "D";
+    return true;
+};
+
+//    this.getBoardList1 = function ( finished_only) {
+//        return this.getBoardList2(finished_only, true);
 //    };
 
-Board.prototype.mf_getBoardList2 = function ( finished_only,  check_steal) {
-    var b_save=new Board();
-    this.mf_restore();
-
+Board.prototype.getBoardList2 = function ( finished_only,  check_steal) {
     var board_list=new Array();
     var board_tmp=new Array();
     var move_list=getMoveList();
     var i,b;
     for (i in move_list ) {
         b=new Board();
-        if (!b.mf_internalMove(i))
+        if (!b.internalMove(i))
             continue;
-        if (!b.mf_canKeepMove() || b.mf_isEnd())
+        if (!b.canKeepMove() || b.isEnd())
             board_list.push(b);
         else
             board_tmp.push(b);
     }
     for (b in board_tmp) {
-        var blist=b.mf_getBoardList2(finished_only, false);
+        var blist=b.getBoardList2(finished_only, false);
         board_list.concat(blist);
     }
 
@@ -188,209 +201,142 @@ Board.prototype.mf_getBoardList2 = function ( finished_only,  check_steal) {
         var sl = new Array();
         for (b in board_list) {
             var b1 = new Board();
-            b1.mf_copyFrom(b);
-            if (b1.mf_steal())
+            b1.copyFrom(b);
+            if (b1.steal())
                 sl.push(b1);
         }
         board_list.concat(sl);
         //board_list=sl;
     }
 
-    b_save.mf_restore();
     return board_list;
 };
 
+
 //-----------------------------------------
+//init
 var b_history=[];
 var b_hist_id=-1;
-
+var theBoard = new Board(null);
+//-----------------------------------------
 function enable_prev_next() {
     $("#prevboard").prop("disabled",b_hist_id===0);
     $("#nextboard").prop("disabled",b_hist_id>=b_history.length-1);
 }
 
-function backup_board(_show) {
-    var b=new Board();
+function backup_board() {
+    var b=new Board(theBoard);
     b_hist_id++;
     b_history[b_hist_id]=b;
     b_history.length=b_hist_id+1;
-    if (_show)  {
-        showBoard();
-    }
     enable_prev_next();
 }
+
 function prev_board() {
     if (b_hist_id===0) return;
     b_hist_id--;
-    b_history[b_hist_id].mf_restore();
+    b_history[b_hist_id].restore();
     showBoard();
     enable_prev_next();
 }
+
 function next_board() {
     if (b_hist_id>=b_history.length-1) return;
     b_hist_id++;
-    b_history[b_hist_id].mf_restore();
+    b_history[b_hist_id].restore();
     showBoard();
     enable_prev_next();
 }
 
-//----------------
-//initial reset
-//----------------
-reset();
+function switch_board() {
+    if (theBoard.switchPlayer()) {
+        return true;
+    }
+    if (theBoard.shistory.length>1)
+        return false;
+    var p=theBoard.player_id;
+    p= (p===0)? 1:0;
 
-function reset() {
-    shield = [3, 3, 4, 3, 3, 0, 3, 3, 4, 3, 3, 0];
-    player_id = 0;
-    end_id = -1;
-    move_cnt = 0;
-    shistory = "A";
-    is_end = false;
-    
+    theBoard.reset();
     b_history=[];
     b_hist_id=-1;
+    theBoard.player_id = p;
+    theBoard.shistory = (p === 0) ? "A" : "B";
+    return true;
 }
 
-function score(p) {
-    return shield[p === 0 ? 5 : 11];
-}
 
-function restart(p) {
-    reset();
-    player_id = p;
-    shistory = (p === 0) ? "A" : "B";
-    backup_board(true);
-}
-
-function canKeepMove() {
-    if (move_cnt === 0)
-        return true;
-    return ((end_id === 5 && player_id === 0) || (end_id === 11 && player_id === 1));
-}
-
-function isEnd() {
-    if (is_end)
-        return is_end;
-    var sa = score(0);
-    var sb = score(1);
-    if ((canKeepMove() && getMoveList().length === 0) || sa > 16 || sb > 16) {
-        is_end = true;
-    }
-    return is_end;
-}
-
-//input: start_id=0-9
+//input: id=0-4 or 6-10
 //output: end_id
 //return true if move is ok.
-function move(id) {
-    if (isEnd())
+function move_board(id) {
+    if (theBoard.isEnd())
         return false;
     var s_id = id;
 
-    if (player_id === 0) {
+    if (theBoard.player_id === 0) {
         if (id < 0 || id > 4)
             return false;
     }
     else { //if (player===1)
-        if (id < 5 || id > 9)
+        if (id < 6 || id > 10)
             return false;
-        id++;
+        s_id--;
     }
-    var cnt = shield[id];
+    var cnt = theBoard.shield[id];
     if (cnt === 0)
         return false;
-    if (!canKeepMove())
+    if (!theBoard.canKeepMove())
         return false;
 
-    shield[id] = 0;
+    theBoard.shield[id] = 0;
     moveChip(cnt,id,0);
     for (id++; cnt > 0; cnt--, id++) {
-        if ((id === 5 && player_id === 1) || (id === 11 && player_id === 0)) {
+        if ((id === 5 && theBoard.player_id === 1) || (id === 11 && theBoard.player_id === 0)) {
             //Wrong Gala
             id++;
         }
         id %= 12;
-        end_id = id;
-        shield[id]++;
+        theBoard.end_id = id;
+        theBoard.shield[id]++;
         moveChip(cnt-1,id,400);
     }
-    move_cnt++;
-    shistory += s_id;
-    backup_board(false);
+    theBoard.move_cnt++;
+    theBoard.shistory += s_id;
+    backup_board();
     return true;
 }
 
-function canSteal() {
-    var other_id = 10 - end_id;
-    return canStealFrom(other_id);
-}
+//function canSteal() {
+//    var other_id = 10 - end_id;
+//    return canStealFrom(other_id);
+//}
 
-function canStealFrom(other_id) {
-    if (isEnd()) {
-        return false;
-    }
-    if (move_cnt === 0 || end_id < 0 || (other_id + end_id !=10))
-        return false;
-    if (player_id === 0 && end_id >= 0 && end_id <= 4 && shield[end_id] === 1) {
-        return (shield[other_id] > 0);
-    }
-    if (player_id === 1 && end_id >= 6 && end_id <= 10 && shield[end_id] === 1) {
-        return (shield[other_id] > 0);
-    }
-    return false;
-}
-
-function steal() {
-    var other_id = 10 - end_id;
-    if (!canStealFrom(other_id))
+function steal_board(other_id) {
+    if (!theBoard.canStealFrom(other_id))
         return false;
 
-    var cnt=shield[other_id];
-    shield[other_id] = 0;
+    var cnt=theBoard.shield[other_id];
+    theBoard.shield[other_id] = 0;
     moveChip(cnt,other_id,0);
 
-    var gala_id = (player_id === 0)? 5:11;
-    shield[gala_id] += cnt;
+    var gala_id = (theBoard.player_id === 0)? 5:11;
+    theBoard.shield[gala_id] += cnt;
     moveChip(0,gala_id,400);
 
-    move_cnt++;
-    shistory += "S";
-    backup_board(false);
+    theBoard.move_cnt++;
+    theBoard.shistory += "S";
+    backup_board();
     return true;
 }
 
-function switchPlayer()
-{
-    if (isEnd() || move_cnt === 0)
-        return false;
-
-    player_id = (player_id === 0) ? 1 : 0;
-    end_id = -1;
-    move_cnt = 0;
-    if (!isEnd())
-        shistory += "D";
-    backup_board(false);
-    return true;
-}
-
-function getMoveList() {
-    var movelist = new Array();
-    var id = 0;
-    if (player_id === 1) id = 6;
-    for (var i = 0; i < 5; i++, id++) {
-        if (shield[id] > 0)
-            movelist.push(id);
-    }
-    return movelist;
-}
-
-//input: start_id=0-4;6-10
-function getMoveId(id) {
-    if (6<=id && id<=10 ) {
-        id--;
-    }
-    return id;
-}
+////input: start_id=0-4;6-10
+//function getMoveId(id) {
+//    if (6<=id && id<=10 ) {
+//        id--;
+//    }
+//    return id;
+//}
 
 //---------------------------
 //UI related
@@ -407,16 +353,16 @@ var flag_y=new Array();
 
 function showShield(i) {
     var button = document.getElementById("S" + i);
-    button.value = (shield[i] == 0) ? "" : shield[i];
-    if (end_id === i)
+    button.value = (theBoard.shield[i] == 0) ? "" : theBoard.shield[i];
+    if (theBoard.end_id === i)
         button.value += "*";
 }
 
 function showValue() {
-	var i;
-	for (i = 0; i < shield.length; i++) {
+    var i;
+    for (i = 0; i < theBoard.shield.length; i++) {
         showShield(i);
-	}
+    }
 }
 
 //function disableButton() {
@@ -429,17 +375,26 @@ function showValue() {
 //	}
 //}
 
+function moveFlag() {
+    var flag=$("#my_flag");
+    flag.animate({
+        left: flag_x + 'px',
+        top: flag_y[theBoard.player_id] + 'px'
+    }, 400, "linear",function() {
+        $(this).attr('value',theBoard.player_id==0?"S turn":"H turn");
+    });
+}
+
 function showBoard() {
-	showValue();
-	//disableButton();
-    moveFlag(false);
+    showValue();
+    //disableButton();
+    moveFlag();
 }
 
 function clickButton(bid) {
     var id=parseInt(bid.substr(1));
-    var mvid=getMoveId(id);
-	if ( move(mvid) || (canStealFrom(id) && steal()) ) {
-		//showBoard();
+    if ( move_board(id) || steal_board(id) ) {
+        //showBoard();
     }
     //alert('You pressed '+id+' value='+v);
 }
@@ -448,10 +403,10 @@ function createButtons() {
     var i, buttonContainer, newButton;
     buttonContainer = document.getElementById('my_board');
     //shields
-    for (i = 0; i < shield.length; i++) {
+    for (i = 0; i < theBoard.shield.length; i++) {
         newButton = document.createElement('input');
         newButton.type = 'button';
-        newButton.value = shield[i]==0?"":shield[i];
+        newButton.value = theBoard.shield[i]==0?"":theBoard.shield[i];
         newButton.id = "S"+i;
         newButton.onclick = function () {
             clickButton(this.id);
@@ -461,10 +416,13 @@ function createButtons() {
     //flag
     newButton = document.createElement('input');
     newButton.type = 'button';
-    newButton.value = player_id==0?'S turn':"H turn";
+    newButton.value = theBoard.player_id==0?'S turn':"H turn";
     newButton.id = 'my_flag';
     newButton.onclick = function () {
-        moveFlag(true);
+        if (switch_board()) {
+            backup_board();
+            moveFlag() ;
+        }
     };
     buttonContainer.appendChild(newButton);
 }
@@ -475,23 +433,23 @@ function moveButtons() {
     var ww=window.innerWidth;
     var wh=window.innerHeight;
     var x0=-17, y0=-30, factor=wh*.95/h, i, x, y, bw, bh;
-	bw = Math.round(60*factor);
-	bh = Math.round(80*factor);
+    bw = Math.round(60*factor);
+    bh = Math.round(80*factor);
     var button,style;
-	//shield
-    for (i=0; i<shield.length;i++) {
+    //shield
+    for (i=0; i<theBoard.shield.length;i++) {
         x=Math.round((posi_x[shield_x[i]] + x0) * factor);
         y=Math.round((posi_y[shield_y[i]] + y0) * factor);
         button=document.getElementById("S"+i);
         if (i==5 || i==11) {
             style='font-size:55px;color:white;width:'+bh+'px;';
-			button.disabled=true;
-		}
+            button.disabled=true;
+        }
         else
             style='font-size:50px;color:white;width:'+bw+'px;';
-		style+='height:'+bh+'px;';
+        style+='height:'+bh+'px;';
         style+='border-color:transparent;';
-		style+='background-color:transparent;position:absolute;top:'+y+'px;left:'+x+'px;';
+        style+='background-color:transparent;position:absolute;top:'+y+'px;left:'+x+'px;';
         button.setAttribute('style', style);
         movebox_x[i]=x;
         movebox_y[i]=y;
@@ -505,29 +463,18 @@ function moveButtons() {
     }
 
     //flag
-	flag_x=Math.round(flag_x_base*factor);
+    flag_x=Math.round(flag_x_base*factor);
     for (i=0; i<2;i++) {
-		flag_y[i]=Math.round(flag_y_base[i]*factor);
-	}
+        flag_y[i]=Math.round(flag_y_base[i]*factor);
+    }
     button=document.getElementById('my_flag');
     style='font-size:35px;color:white;width:'+bh+'px;height:'+bw+'px;';
     style+='border-color:black;';
-    style+='background-color:transparent;position:absolute;top:'+flag_y[player_id]+'px;left:'+flag_x+'px;';
+    style+='background-color:transparent;position:absolute;top:'+flag_y[theBoard.player_id]+'px;left:'+flag_x+'px;';
     button.setAttribute('style', style);
 }
 
-function moveFlag(in_game) {
-    var flag=$("#my_flag");
-    if (!in_game || switchPlayer()) {
-        flag.animate({
-            left: flag_x + 'px',
-            top: flag_y[player_id] + 'px'
-        }, 400, "linear",function() {
-            $(this).attr('value',player_id==0?"S turn":"H turn");
-        });
-        showValue();
-    }
-}
+
 function isInteger(str) {
     var n=~~Number(str);
     return String(n) === str;
@@ -564,17 +511,18 @@ function readSingleFile(evt) {
                 alert("Unknown format!")
                 return;
             }
-            reset();
+            theBoard.reset();
             for (i=0;i<12;i++) {
-                shield[i]=data[i];
+                theBoard.shield[i]=data[i];
             }
             if (data.length>=13)
-                player_id=data[12];
+                theBoard.player_id=data[12];
             if (data.length>=14)
-                end_id=data[13];
+                theBoard.end_id=data[13];
             if (data.length>=15)
-                move_cnt=data[14];
-            backup_board(true);
+                theBoard.move_cnt=data[14];
+            backup_board();
+            showBoard();
         }
         r.readAsText(f);
     } else {
@@ -614,7 +562,7 @@ window.onload = function () {
     finput.addEventListener('change', readSingleFile, false);
     createButtons();
     moveButtons();
-    backup_board(false);
+    backup_board();
 };
 
 window.onresize = function () {
