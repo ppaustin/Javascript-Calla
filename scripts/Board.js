@@ -6,6 +6,10 @@ function cloneArray(a) {
     return b;
 }
 
+function sign(v) {
+    return (v>0? 1:(v<0? -1:0));
+}
+
 //--------------------------------
 //    int [] shield;
 //
@@ -15,9 +19,10 @@ function cloneArray(a) {
 //    String shistory;
 //
 //    boolean is_end;
+//    EvaluateResult evaluate;
 
 //--------------------------------
-
+//Board class
 function Board(other) {
     if (!other)
         this.reset();
@@ -32,17 +37,17 @@ Board.prototype.reset = function () {
     this.move_cnt = 0;
     this.shistory = "A";
     this.is_end = false;
+    this.evaluate = null;
 };
 
 Board.prototype.copyFrom = function (other) {
-    if (this===other)
-        return;
-    this.shield=cloneArray(other.shield);
-    this.player_id=other.player_id;
-    this.end_id=other.end_id;
-    this.move_cnt=other.move_cnt;
-    this.shistory=other.shistory;
-    this.is_end=other.is_end;
+    this.shield = cloneArray(other.shield);
+    this.player_id = other.player_id;
+    this.end_id = other.end_id;
+    this.move_cnt = other.move_cnt;
+    this.shistory = other.shistory;
+    this.is_end = other.is_end;
+    this.evaluate = other.evaluate;
 };
 
 //Board.prototype.backup = function () {
@@ -58,7 +63,7 @@ Board.prototype.score = function (p) {
 };
 
 Board.prototype.getMoveList = function () {
-    var movelist = new Array();
+    var movelist = []; //new Array();
     var id = 0;
     if (this.player_id === 1) id = 6;
     for (var i = 0; i < 5; i++, id++) {
@@ -101,6 +106,7 @@ Board.prototype.move = function (id) {
     }
     this.move_cnt++;
     this.shistory += s_id;
+    this.evaluate = null;
     return true;
 };
 
@@ -132,12 +138,13 @@ Board.prototype.stealFrom = function (other_id) {
 
     this.move_cnt++;
     this.shistory += "S";
+    this.evaluate = null;
     return true;
 };
 
 Board.prototype.steal = function () {
     var other_id = 10 - this.end_id;
-    return canStealFrom(other_id);
+    return this.stealFrom(other_id);
 };
 
 Board.prototype.canKeepMove = function () {
@@ -170,54 +177,209 @@ Board.prototype.switchPlayer = function ()
         this.shistory += "D";
     return true;
 };
+//input: start_id=0-4;6-10
+Board.prototype.internalMove = function(id) {
+    if (this.player_id==1) {
+        id--;
+    }
+    return this.move(id);
+}
 
-//    this.getBoardList1 = function ( finished_only) {
-//        return this.getBoardList2(finished_only, true);
-//    };
-
-Board.prototype.getBoardList2 = function ( finished_only,  check_steal) {
-    var board_list=new Array();
-    var board_tmp=new Array();
-    var move_list=getMoveList();
-    var i,b;
-    for (i in move_list ) {
-        b=new Board();
-        if (!b.internalMove(i))
+Board.prototype.getBoardList = function ( finished_only,  check_steal) {
+//    var board_list=new Array();
+//    var board_tmp=new Array();
+    var board_list=[];
+    var board_tmp=[];
+    var move_list=this.getMoveList();
+    var i,len;
+    for (i=0,len=move_list.length;i<len;i++ ) {
+        var b=new Board(this);
+        if (!b.internalMove(move_list[i]))
             continue;
         if (!b.canKeepMove() || b.isEnd())
             board_list.push(b);
         else
             board_tmp.push(b);
     }
-    for (b in board_tmp) {
-        var blist=b.getBoardList2(finished_only, false);
-        board_list.concat(blist);
+    for (i=0,len=board_tmp.length;i<len;i++ ) {
+        var blist=board_tmp[i].getBoardList(finished_only, false);
+        board_list=board_list.concat(blist);
     }
 
     if (!finished_only)
-        board_list.concat(board_tmp);
+        board_list=board_list.concat(board_tmp);
 
     if (check_steal) {
-        var sl = new Array();
-        for (b in board_list) {
-            var b1 = new Board();
-            b1.copyFrom(b);
+        //var sl = new Array();
+        for (i=0,len=board_list.length;i<len;i++ ) {
+            var b1 = new Board(board_list[i]);
             if (b1.steal())
-                sl.push(b1);
+                board_list.push(b1);
         }
-        board_list.concat(sl);
+        //board_list.concat(sl);
         //board_list=sl;
     }
 
     return board_list;
 };
+//-----------------------------------------
+// class EvaluateResult {
+//    Board board;
+//    private int status; //3:A win; 2:A score=16 1:tie 0:unkown -2:B score=16 -3:B win
+//    int score_diff;
+//    int score_A;
+//    long run_time;
 
+function EvaluateResult(b) {
+//    EvaluateResult(Board b){
+//        reset();
+//        internalCheck(b);
+//    }
+
+    this.reset();
+    this.internalCheck(b);
+}
+
+EvaluateResult.prototype.Check =function (b) {
+    if (b.evaluate==null)
+        b.evaluate=new EvaluateResult(b);
+    return b.evaluate;
+};
+
+EvaluateResult.prototype.reset = function () {
+//    void reset() {
+//        board=come_from=null;
+//        status=0;
+//        score_diff=0;
+//        score_A=0;
+//    }
+    this.board=null;
+    this.status=0;
+    this.score_diff=0;
+    this.score_A=0;
+};
+
+//    void internalCheck(final Board b) {
+//        CheckCount=CheckCount.add(BigInteger.ONE);
+//
+//        board=b;
+//        score_A=board.score(Player.A);
+//        int score_B=board.score(Player.B);
+//        score_diff=score_A-score_B;
+//        if (board.isEnd()) {
+//            if (score_A>score_B) status = 3;
+//            else if (score_A<score_B) status = -3;
+//            else {
+//                status=1;
+//                //is_tie=true;
+//            }
+//        }
+//        else {
+//            if (score_A==16) status = 2;
+//            else if (score_B==16) status = -2;
+//        }
+//    }
+EvaluateResult.prototype.internalCheck = function (b) {
+    this.board=b;
+    this.score_A=b.score(0);
+    var score_B=b.score(1);
+    this.score_diff=this.score_A-score_B;
+    if (b.isEnd()) {
+        if (this.score_A>score_B) this.status = 3;
+        else if (this.score_A<score_B) this.status = -3;
+        else {
+            this.status=1;
+        }
+    }
+    else {
+        if (this.score_A==16) this.status = 2;
+        else if (score_B==16) this.status = -2;
+    }
+};
+
+EvaluateResult.prototype.isAWin = function () { return status==3; }
+EvaluateResult.prototype.isBWin = function () { return status==-3; }
+
+//    int compareTo(int player_id,EvaluateResult rb) {
+//        int result=compareAB(rb);
+//        return (player_id==Player.A)? result:-result;
+//    }
+EvaluateResult.prototype.compareTo = function ( player_id, rb) {
+    var result=this.compareAB(rb);
+    return (player_id==0)? result:-result;
+};
+
+//    //compare player A vs player B
+//    private int compareAB_sub1(EvaluateResult rb) {
+//        //win more or loss less is better.
+//        int s_diff=sign(score_diff-rb.score_diff);
+//        if (s_diff != 0)
+//            return s_diff;
+//
+//        //now win/loss are same
+//        int sa_diff=sign(score_A-rb.score_A);
+//        if (score_diff>0)     //A lead
+//            return sa_diff;   //score_A the more the better
+//        else if (score_diff<0)  //B lead,
+//            return -sa_diff;    // score_B the less the better
+//
+//        //now it is tie
+//        //return 0; //maybe enough!!
+//        if (board.player_id==0) //next turn will be player B
+//            return -sa_diff;    //score_B the less the better
+//        return sa_diff;   //score_A the more the better
+//    }
+
+//compare player A vs player B
+EvaluateResult.prototype.compareAB_sub1 = function (rb) {
+    //win more or loss less is better.
+    var s_diff=sign(this.score_diff-rb.score_diff);
+    if (s_diff != 0)
+        return s_diff;
+
+    //now win/loss are same
+    var sa_diff=sign(this.score_A-rb.score_A);
+    if (this.score_diff>0)     //A lead
+        return sa_diff;   //score_A the more the better
+    else if (this.score_diff<0)  //B lead,
+        return -sa_diff;    // score_B the less the better
+
+    //now it is tie
+    //return 0; //maybe enough!!
+    if (this.board.player_id==0) //next turn will be player B
+        return -sa_diff;    //score_B the less the better
+    return sa_diff;   //score_A the more the better
+};
+
+//private int compareAB(EvaluateResult rb) {
+//    CompCount=CompCount.add(BigInteger.ONE);
+//    if (status>rb.status)
+//        return 1;
+//    if (status<rb.status)
+//        return -1;
+//    return compareAB_sub1(rb);
+//}
+
+EvaluateResult.prototype.compareAB = function ( rb) {
+    if (this.status>rb.status)
+        return 1;
+    if (this.status<rb.status)
+        return -1;
+    return this.compareAB_sub1(rb);
+};
 
 //-----------------------------------------
 //init
 var b_history=[];
 var b_hist_id=-1;
 var theBoard = new Board(null);
+var pc_level=0;
+var adj_level=1;
+var theEvResult=new EvaluateResult(theBoard);
+
+
+//-----------------------------------------
+//move chips on board
 //-----------------------------------------
 function enable_prev_next() {
     $("#prevboard").prop("disabled",b_hist_id===0);
@@ -249,19 +411,23 @@ function next_board() {
 }
 
 function switch_board() {
-    if (theBoard.switchPlayer()) {
-        return true;
-    }
-    if (theBoard.shistory.length>1)
-        return false;
-    var p=theBoard.player_id;
-    p= (p===0)? 1:0;
+    if (!theBoard.switchPlayer()) {
 
-    theBoard.reset();
-    b_history=[];
-    b_hist_id=-1;
-    theBoard.player_id = p;
-    theBoard.shistory = (p === 0) ? "A" : "B";
+        if (theBoard.shistory.length > 1)
+            return false;
+        var p = theBoard.player_id;
+        p = (p === 0) ? 1 : 0;
+
+        theBoard.reset();
+        b_history = [];
+        b_hist_id = -1;
+        theBoard.player_id = p;
+        theBoard.shistory = (p === 0) ? "A" : "B";
+        adj_level = (p === 0) ? 1 : 0;
+    }
+    backup_board();
+    showValue();
+    moveFlag(true) ;
     return true;
 }
 
@@ -269,7 +435,7 @@ function switch_board() {
 //input: id=0-4 or 6-10
 //output: end_id
 //return true if move is ok.
-function move_board(id) {
+function move_board(id, switch_player) {
     if (theBoard.isEnd())
         return false;
     var s_id = id;
@@ -291,19 +457,26 @@ function move_board(id) {
 
     theBoard.shield[id] = 0;
     moveChip(cnt,id,0);
+    var tid=id;
     for (id++; cnt > 0; cnt--, id++) {
         if ((id === 5 && theBoard.player_id === 1) || (id === 11 && theBoard.player_id === 0)) {
             //Wrong Gala
             id++;
         }
         id %= 12;
+        tid=id;
         theBoard.end_id = id;
         theBoard.shield[id]++;
-        moveChip(cnt-1,id,400);
+        moveChip(cnt-1,id,400,cnt===1);
     }
     theBoard.move_cnt++;
     theBoard.shistory += s_id;
+    theBoard.evaluate = null;
     backup_board();
+    if (switch_player) {
+        moveChip(0,tid,0,true,true);
+    }
+
     return true;
 }
 
@@ -313,6 +486,8 @@ function move_board(id) {
 //}
 
 function steal_board(other_id) {
+    if (other_id==null)
+        other_id = 10 - theBoard.end_id;
     if (!theBoard.canStealFrom(other_id))
         return false;
 
@@ -322,11 +497,14 @@ function steal_board(other_id) {
 
     var gala_id = (theBoard.player_id === 0)? 5:11;
     theBoard.shield[gala_id] += cnt;
-    moveChip(0,gala_id,400);
 
     theBoard.move_cnt++;
     theBoard.shistory += "S";
+    theBoard.evaluate = null;
+
     backup_board();
+
+    moveChip(0,gala_id,400,true,true);
     return true;
 }
 
@@ -349,7 +527,7 @@ var movebox_y=[];
 var flag_x_base = 15;
 var flag_y_base = [306,80];
 var flag_x;
-var flag_y=new Array();
+var flag_y=[];
 
 function showShield(i) {
     var button = document.getElementById("S" + i);
@@ -375,25 +553,30 @@ function showValue() {
 //	}
 //}
 
-function moveFlag() {
+function moveFlag(auto_run) {
     var flag=$("#my_flag");
     flag.animate({
         left: flag_x + 'px',
         top: flag_y[theBoard.player_id] + 'px'
     }, 400, "linear",function() {
         $(this).attr('value',theBoard.player_id==0?"S turn":"H turn");
-    });
+        if (auto_run) {
+            if (!autoMove(theBoard)) {
+                showValue();
+            }
+        }
+    })
 }
 
 function showBoard() {
     showValue();
     //disableButton();
-    moveFlag();
+    moveFlag(false);
 }
 
 function clickButton(bid) {
     var id=parseInt(bid.substr(1));
-    if ( move_board(id) || steal_board(id) ) {
+    if ( move_board(id,false) || steal_board(id) ) {
         //showBoard();
     }
     //alert('You pressed '+id+' value='+v);
@@ -420,8 +603,6 @@ function createButtons() {
     newButton.id = 'my_flag';
     newButton.onclick = function () {
         if (switch_board()) {
-            backup_board();
-            moveFlag() ;
         }
     };
     buttonContainer.appendChild(newButton);
@@ -481,7 +662,8 @@ function isInteger(str) {
 }
 
 function readSingleFile(evt) {
-    var data=new Array();
+    //var data=new Array();
+    var data=[];
     //Retrieve the first (and only!) File from the FileList object
     var f = evt.target.files[0];
 
@@ -539,8 +721,11 @@ function readSingleFile(evt) {
 //    }
 //}
 
-function moveChip(num,id,speed) {
+function moveChip_2(num,id,speed,switch_player) {
+//speed=0;
     var chip=$("#my_chip");
+    //var flag=$("#my_flag");
+    //flag.prop("disabled",true);
     chip.animate({
         left: movebox_x[id] + 'px',
         top: movebox_y[id] + 'px'
@@ -553,18 +738,210 @@ function moveChip(num,id,speed) {
         top: movebox_y[id] + 'px'
     }, speed, "linear",function() {
         $(this).text(num==0?'':num.toString());
+        //flag.prop("disabled",false);
+        if(switch_player) {
+            switch_board()
+        }
+
     });
 }
 
+function moveChip(num,id,speed,last_move=false,switch_player=false) {
+//speed=0;
+    var chip=$("#my_chip");
+    var button = document.getElementById("S" + id);
+    var b_val= (theBoard.shield[id] == 0) ? "" : theBoard.shield[id];
+    if (last_move)
+        b_val += "*";
+    //var flag=$("#my_flag");
+    //flag.prop("disabled",true);
+    chip.animate({
+        left: movebox_x[id] + 'px',
+        top: movebox_y[id] + 'px'
+    }, speed, "linear",function() {
+        $(this).text(num.toString());
+        button.value = b_val;
+    });
+    chip.animate({
+        left: movebox_x[id] + 'px',
+        top: movebox_y[id] + 'px'
+    }, speed, "linear",function() {
+        $(this).text(num==0?'':num.toString());
+        //flag.prop("disabled",false);
+        if(last_move && switch_player) {
+            switch_board()
+        }
+
+    });
+}
+
+//--------------------------------------------
+//for given board, return the best move for player_id,
+// level is the max search level
+function searchMove(board, level)
+{
+    var startTime = Date.now();
+    var result= searchResursive(board,level);
+    var endTime = Date.now();
+    result.run_time=endTime - startTime;
+    return result;
+}
+
+function searchResursive( board,  level)
+{
+    var result=null;
+
+    if (board.isEnd())
+    {
+        result = theEvResult.Check(board);
+        //result.come_from = board;
+        return result;
+    }
+    var finished_only=false;
+    var check_steal=true;
+
+    //get possible move
+    var moveList = board.getBoardList(finished_only,check_steal);
+    var n = moveList.length;
+    if (n == 0)
+    {
+        alert("DBG unfinished board!");
+        board.is_end = true;
+        result = theEvResult.Check(board);
+        //result.come_from = board;
+        return result;
+    }
+
+    //check if already win
+    var i;
+    for ( i=0;i<n;i++)
+    {
+        result = theEvResult.Check(moveList[i]);
+        if (board.player_id == 0)
+        {
+            if (!result.isAWin())
+                continue;
+        } else if (!result.isBWin())
+            continue;
+        //result.come_from = board;
+        return result;
+    }
+
+
+    //search best move
+    var er_tmp;
+    for (i = 0; i < n; i++)
+    {
+        //get expectation board
+        var b_exp = moveList[i];
+        if (level > 1)
+        {
+            var b_exp2 = new Board(b_exp);
+            b_exp2.switchPlayer();
+            er_tmp = searchResursive(b_exp2, level - 1);
+        }
+        else
+        {
+            er_tmp = theEvResult.Check(b_exp);
+        }
+//        var tt1=er_tmp.board.shistory;
+//        var tt2=result.board.shistory;
+//        if (er_tmp.board.shistory=="B8D2D7") {
+//            var t="found 1!";
+//        }
+//        if (er_tmp.board.shistory=="B9D0D7") {
+//            var t="found 2!";
+//        }
+        //er_tmp.come_from=moveList[i];
+        if (i == 0 || (result.compareTo(board.player_id, er_tmp) < 0))
+        {
+            result = er_tmp;
+            var t1=er_tmp.board.shistory;
+            var t2=result.board.shistory;
+        }
+    }
+    return result;
+}
+
+function autoMove(board)
+{
+    if (board.isEnd() || board.player_id!=1)
+        return false;
+    if (pc_level===0)
+        return false;
+    var result=searchMove(board,pc_level+adj_level);
+    if (board==result.board)
+        return false;
+    var next_board;
+//    if (board==result.come_from)
+//        next_board = result.board;
+//    else
+//        next_board = result.come_from;
+    next_board = result.board;
+    var s1=next_board.shistory;
+    var s0=board.shistory;
+    var steps=s1.substr(s0.length);
+    var pos_d=steps.indexOf("D");
+    if (pos_d>0)
+        steps=steps.substr(0,pos_d);
+    //alert("runtime="+result.run_time+" steps="+steps);
+    for (var i= 0, len=steps.length; i<len;i++) {
+        switch(steps[i]) {
+            case "5":
+            case "6":
+            case "7":
+            case "8":
+            case "9":
+                move_board(parseInt(steps[i])+1,i==len-1);
+                break;
+            case "S":
+                steal_board(null);
+                break;
+            default:
+                alert("Unknown step"+steps[i]);
+                return false;
+        }
+    }
+    return true;
+}
+
+function auto_go() {
+    var lev=$("#opponent").prop("selectedIndex");
+    pc_level=lev;
+    if (pc_level>0) {
+        $("#prevboard").hide();
+        $("#nextboard").hide();
+        $("#fileinput").hide();
+    }
+    else {
+        $("#prevboard").show();
+        $("#nextboard").show();
+        $("#fileinput").show();
+    }
+    autoMove(theBoard);
+}
+
+//--------------------------------------------
 
 window.onload = function () {
     var finput=document.getElementById('fileinput');
     finput.addEventListener('change', readSingleFile, false);
     createButtons();
     moveButtons();
+    moveChip(0,0,0);
     backup_board();
 };
 
 window.onresize = function () {
     moveButtons();
 };
+
+//notes:
+/*
+1 for in loop behavior is wired
+2 why need moveChip in onload to enalbe buttons?
+changes
+ searchResursive (>-1 => >-2)
+ EvaluateResult needs change: sign ...
+
+*/

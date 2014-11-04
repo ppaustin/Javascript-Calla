@@ -43,9 +43,27 @@ img {
 <div>
     <img src="images/callaBoard1.JPG">
     <div id='my_board'>
-        <input type="file" id="fileinput" />
+        <select id="opponent" size="1" onchange="auto_go()">
+            <option value="#">Manual</option>
+            <option value="#">Easy</option>
+            <option value="#">Medium</option>
+            <option value="#">Hard</option>
+        </select>
         <button id='prevboard' onclick="prev_board()">Prev</button>
         <button id='nextboard' onclick="next_board()">Next</button>
+        <input type="file" id="fileinput" />
+        <!--
+                <form id='combo'>
+                    <select name="opponent" size="1">
+                        <option value="#">Manual</option>
+                        <option value="#">Easy</option>
+                        <option value="#">Medium</option>
+                        <option value="#">Hard</option>
+                    </select>
+                    <input type="button" name="go" value="Go!"
+                           onClick="auto_go()">
+                </form>
+        -->
         <div id='my_chip' style="font-size:30px;color:white"></div>
     </div>
 </div>
