@@ -183,7 +183,7 @@ Board.prototype.internalMove = function(id) {
         id--;
     }
     return this.move(id);
-}
+};
 
 Board.prototype.getBoardList = function ( finished_only,  check_steal) {
 //    var board_list=new Array();
@@ -241,7 +241,7 @@ function EvaluateResult(b) {
 }
 
 EvaluateResult.prototype.Check =function (b) {
-    if (b.evaluate==null)
+    if (b.evaluate===null)
         b.evaluate=new EvaluateResult(b);
     return b.evaluate;
 };
@@ -297,8 +297,8 @@ EvaluateResult.prototype.internalCheck = function (b) {
     }
 };
 
-EvaluateResult.prototype.isAWin = function () { return status==3; }
-EvaluateResult.prototype.isBWin = function () { return status==-3; }
+EvaluateResult.prototype.isAWin = function () { return status==3; };
+EvaluateResult.prototype.isBWin = function () { return status==-3; };
 
 //    int compareTo(int player_id,EvaluateResult rb) {
 //        int result=compareAB(rb);
@@ -306,7 +306,7 @@ EvaluateResult.prototype.isBWin = function () { return status==-3; }
 //    }
 EvaluateResult.prototype.compareTo = function ( player_id, rb) {
     var result=this.compareAB(rb);
-    return (player_id==0)? result:-result;
+    return (player_id===0)? result:-result;
 };
 
 //    //compare player A vs player B
@@ -334,7 +334,7 @@ EvaluateResult.prototype.compareTo = function ( player_id, rb) {
 EvaluateResult.prototype.compareAB_sub1 = function (rb) {
     //win more or loss less is better.
     var s_diff=sign(this.score_diff-rb.score_diff);
-    if (s_diff != 0)
+    if (s_diff !== 0)
         return s_diff;
 
     //now win/loss are same
@@ -346,7 +346,7 @@ EvaluateResult.prototype.compareAB_sub1 = function (rb) {
 
     //now it is tie
     //return 0; //maybe enough!!
-    if (this.board.player_id==0) //next turn will be player B
+    if (this.board.player_id===0) //next turn will be player B
         return -sa_diff;    //score_B the less the better
     return sa_diff;   //score_A the more the better
 };
@@ -414,7 +414,9 @@ function switch_board() {
     if (!theBoard.switchPlayer()) {
 
         if (theBoard.shistory.length > 1)
+		{
             return false;
+		}
         var p = theBoard.player_id;
         p = (p === 0) ? 1 : 0;
 
@@ -457,6 +459,7 @@ function move_board(id, switch_player) {
 
     theBoard.shield[id] = 0;
     moveChip(cnt,id,0);
+    theBoard.move_cnt++;
     var tid=id;
     for (id++; cnt > 0; cnt--, id++) {
         if ((id === 5 && theBoard.player_id === 1) || (id === 11 && theBoard.player_id === 0)) {
@@ -469,7 +472,6 @@ function move_board(id, switch_player) {
         theBoard.shield[id]++;
         moveChip(cnt-1,id,400,cnt===1);
     }
-    theBoard.move_cnt++;
     theBoard.shistory += s_id;
     theBoard.evaluate = null;
     backup_board();
@@ -486,7 +488,7 @@ function move_board(id, switch_player) {
 //}
 
 function steal_board(other_id) {
-    if (other_id==null)
+    if (other_id===null)
         other_id = 10 - theBoard.end_id;
     if (!theBoard.canStealFrom(other_id))
         return false;
@@ -531,7 +533,7 @@ var flag_y=[];
 
 function showShield(i) {
     var button = document.getElementById("S" + i);
-    button.value = (theBoard.shield[i] == 0) ? "" : theBoard.shield[i];
+    button.value = (theBoard.shield[i] === 0) ? "" : theBoard.shield[i];
     if (theBoard.end_id === i)
         button.value += "*";
 }
@@ -559,13 +561,13 @@ function moveFlag(auto_run) {
         left: flag_x + 'px',
         top: flag_y[theBoard.player_id] + 'px'
     }, 400, "linear",function() {
-        $(this).attr('value',theBoard.player_id==0?"S turn":"H turn");
+        $(this).attr('value',theBoard.player_id===0?"S turn":"H turn");
         if (auto_run) {
             if (!autoMove(theBoard)) {
                 showValue();
             }
         }
-    })
+    });
 }
 
 function showBoard() {
@@ -589,7 +591,7 @@ function createButtons() {
     for (i = 0; i < theBoard.shield.length; i++) {
         newButton = document.createElement('input');
         newButton.type = 'button';
-        newButton.value = theBoard.shield[i]==0?"":theBoard.shield[i];
+        newButton.value = theBoard.shield[i]===0?"":theBoard.shield[i];
         newButton.id = "S"+i;
         newButton.onclick = function () {
             clickButton(this.id);
@@ -599,7 +601,7 @@ function createButtons() {
     //flag
     newButton = document.createElement('input');
     newButton.type = 'button';
-    newButton.value = theBoard.player_id==0?'S turn':"H turn";
+    newButton.value = theBoard.player_id===0?'S turn':"H turn";
     newButton.id = 'my_flag';
     newButton.onclick = function () {
         if (switch_board()) {
@@ -613,7 +615,7 @@ function moveButtons() {
     var h=388; //image's size
     var ww=window.innerWidth;
     var wh=window.innerHeight;
-    var x0=-17, y0=-30, factor=wh*.95/h, i, x, y, bw, bh;
+    var x0=-17, y0=-30, factor=wh*0.95/h, i, x, y, bw, bh;
     bw = Math.round(60*factor);
     bh = Math.round(80*factor);
     var button,style;
@@ -721,7 +723,7 @@ function readSingleFile(evt) {
 //    }
 //}
 
-function moveChip_2(num,id,speed,switch_player) {
+/* function moveChip_2(num,id,speed,switch_player) {
 //speed=0;
     var chip=$("#my_chip");
     //var flag=$("#my_flag");
@@ -737,7 +739,7 @@ function moveChip_2(num,id,speed,switch_player) {
         left: movebox_x[id] + 'px',
         top: movebox_y[id] + 'px'
     }, speed, "linear",function() {
-        $(this).text(num==0?'':num.toString());
+        $(this).text(num===0?'':num.toString());
         //flag.prop("disabled",false);
         if(switch_player) {
             switch_board()
@@ -745,12 +747,15 @@ function moveChip_2(num,id,speed,switch_player) {
 
     });
 }
-
-function moveChip(num,id,speed,last_move=false,switch_player=false) {
+ */
+ 
+function moveChip(num,id,speed,last_move,switch_player) {
 //speed=0;
+	last_move = typeof last_move !== 'undefined'? last_move:false;
+	switch_player =  typeof switch_player !== 'undefined'? switch_player:false;
     var chip=$("#my_chip");
     var button = document.getElementById("S" + id);
-    var b_val= (theBoard.shield[id] == 0) ? "" : theBoard.shield[id];
+    var b_val= (theBoard.shield[id] === 0) ? "" : theBoard.shield[id];
     if (last_move)
         b_val += "*";
     //var flag=$("#my_flag");
@@ -766,9 +771,14 @@ function moveChip(num,id,speed,last_move=false,switch_player=false) {
         left: movebox_x[id] + 'px',
         top: movebox_y[id] + 'px'
     }, speed, "linear",function() {
-        $(this).text(num==0?'':num.toString());
+        $(this).text(num===0?'':num.toString());
         //flag.prop("disabled",false);
-        if(last_move && switch_player) {
+		if (theBoard.isEnd()) {
+			var rc=sign(theBoard.score(0)-theBoard.score(1));
+			var flag=$("#my_flag");
+			flag.attr('value',rc>0?"S Win!":(rc<0?"H Win!":"Tie"));
+		}	
+        else if (last_move && switch_player) {
             switch_board()
         }
 
@@ -803,7 +813,7 @@ function searchResursive( board,  level)
     //get possible move
     var moveList = board.getBoardList(finished_only,check_steal);
     var n = moveList.length;
-    if (n == 0)
+    if (n === 0)
     {
         alert("DBG unfinished board!");
         board.is_end = true;
@@ -817,7 +827,7 @@ function searchResursive( board,  level)
     for ( i=0;i<n;i++)
     {
         result = theEvResult.Check(moveList[i]);
-        if (board.player_id == 0)
+        if (board.player_id === 0)
         {
             if (!result.isAWin())
                 continue;
@@ -853,7 +863,7 @@ function searchResursive( board,  level)
 //            var t="found 2!";
 //        }
         //er_tmp.come_from=moveList[i];
-        if (i == 0 || (result.compareTo(board.player_id, er_tmp) < 0))
+        if (i === 0 || (result.compareTo(board.player_id, er_tmp) < 0))
         {
             result = er_tmp;
             var t1=er_tmp.board.shistory;
