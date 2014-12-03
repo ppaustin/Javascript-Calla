@@ -773,13 +773,15 @@ function moveChip(num,id,speed,last_move,switch_player) {
     }, speed, "linear",function() {
         $(this).text(num===0?'':num.toString());
         //flag.prop("disabled",false);
-		if (theBoard.isEnd()) {
-			var rc=sign(theBoard.score(0)-theBoard.score(1));
-			var flag=$("#my_flag");
-			flag.attr('value',rc>0?"S Win!":(rc<0?"H Win!":"Tie"));
-		}	
-        else if (last_move && switch_player) {
-            switch_board()
+        if (last_move) {
+			if (theBoard.isEnd()) {
+				var rc=sign(theBoard.score(0)-theBoard.score(1));
+				var flag=$("#my_flag");
+				flag.attr('value',rc>0?"S Win!":(rc<0?"H Win!":"Tie"));
+			}
+			else if (switch_player) {
+				switch_board()
+			}
         }
 
     });
